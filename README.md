@@ -6,7 +6,7 @@ They are based on version 2.0.9.2 of Marlin: https://github.com/MarlinFirmware/M
 
 Sovol's github is: https://github.com/Sovol3d/SV04-IDEX-3D-Printer-Mainboard-Source-code
 
-They haven't made any changes since April 2023. This is all based on `1867fcb` as Sovol's latest commit.
+They haven't made any changes since April 2023, and nothing worth noting since they released it in January of 2022. This is all based on `1867fcb` as Sovol's latest commit.
 
 It's confusing because they changed the version the source to say it's version 1.1.0.
 
@@ -147,6 +147,8 @@ Here's the details. I'll omit files that were deleted or only had their permissi
 - extrapolate beyond grid is on
 - NOZZLE_PARK_FEATURE is on, max rate 50
 
+<details>
+<summary>Configuration.h</summary>
 
 ```diff
 diff --git a/Marlin/Configuration.h b/Marlin/Configuration.h
@@ -705,12 +707,17 @@ index c50af25e63..b226c55234 100644
  // If SOFT_PWM_SCALE is set to a value higher than 0, dithering can
  // be used to mitigate the associated resolution loss. If enabled,
  ```
+</details>
+
+### Advanced Configuration
 
  Now the advanced configuration.
 
 - X2_MAX_POS 362
 - they change LIN_ADVANCE_K to 0.09, which is odd since the feature isn't on
-- 
+
+<details>
+<summary>Configuration_adv.h</summary>
 
 ```diff
 diff --git a/Marlin/Configuration_adv.h b/Marlin/Configuration_adv.h
@@ -878,9 +885,15 @@ index 6e44f009ed..8b876d830b 100644
    //#define FILAMENT_CHANGE_RESUME_ON_INSERT      // Automatically continue / load filament when runout sensor is triggered again.
    //#define PAUSE_REHEAT_FAST_RESUME              // Reduce number of waits by not prompting again post-timeout before continuing.
 ```
+</details>
+
+### Sd2Card stuff
 
 - Some SDIO_Dx_PIN's are commented out.
   - not sure why
+
+<details>
+<summary>Sd2Card_sdio_stm32duino.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/HAL/STM32/Sd2Card_sdio_stm32duino.cpp b/Marlin/src/HAL/STM32/Sd2Card_sdio_stm32duino.cpp
@@ -904,6 +917,9 @@ index 54e1820c78..7c1f04f777 100644
  // F4 supports one DMA for RX and another for TX, but Marlin will never
  // do read and write at same time, so we use the same DMA for both.
  ```
+</details>
+
+### Marllin Core
 
 - check if `RTS_AVAILABLE` (which is defined earlier in a config file, so `true`)
   - include the custom LCD_RTS header
@@ -915,6 +931,9 @@ index 54e1820c78..7c1f04f777 100644
 - code related to wiring up the touch screen
   - it's taking the form of replacing DWIN_xxx with RTSyyy, often inside `#if HAS_DWIN_E3V2_BASIC` but sometime s not
 - as part of `setup()` it runs `queue.enqueue_now_P(PSTR("M280 P0 S160"));`: set servo 0 position to 160
+
+<details>
+<summary>MarlinCore.cpp</summary>
 
  ```diff
 diff --git a/Marlin/src/MarlinCore.cpp b/Marlin/src/MarlinCore.cpp
@@ -1027,9 +1046,12 @@ index 1b9c8885b1..bc6c069b09 100644
  
  /**
  ```
+</details>
 
 - the two new global variables, defined in the cpp file, are added to the header, making them mutable and readable from anywhere
 
+<details>
+<summary>MarlinCore.h</summary>
 
  ```diff
 diff --git a/Marlin/src/MarlinCore.h b/Marlin/src/MarlinCore.h
@@ -1046,8 +1068,14 @@ index c3698d616d..f3d8f19aa9 100644
  #if HAS_RESUME_CONTINUE
    extern bool wait_for_user;
 ```
+</details>
+
+### bedlevel/abl
 
 - abl.h now includes bedlevel.h for some reason
+
+<details>
+<summary>abl.h</summary>
 
 ```diff
 diff --git a/Marlin/src/feature/bedlevel/abl/abl.h b/Marlin/src/feature/bedlevel/abl/abl.h
@@ -1063,6 +1091,9 @@ index 3d54c55695..2fb632cc06 100644
  extern xy_pos_t bilinear_grid_spacing, bilinear_start;
  extern xy_float_t bilinear_grid_factor;
 ```
+</details>
+
+### feature/pause
 
 - touch screen changes
 - some comments in Chinese, translated by google (these might actually have been chinese translated of english strings to start with, I didn't check the constants like PAUSE_MESSAGE_UNLOAD were defiend to)
@@ -1072,6 +1103,8 @@ index 3d54c55695..2fb632cc06 100644
   - "等待卸下丝料" => "Waiting to unload the filament" 
   - "按下确认，加热喷嘴" => "Press to confirm and heat the nozzle"
 
+<details>
+<summary>pause.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/feature/pause.cpp b/Marlin/src/feature/pause.cpp
@@ -1170,6 +1203,9 @@ index d54326116e..ee461cd5c7 100644
  
        TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_HEATER_TIMEOUT), GET_TEXT(MSG_REHEAT)));
 ```
+</details>
+
+### powerloss
 
 - power loss recovery stuff
   - write some status to new variable `info.recovery_flag`
@@ -1177,6 +1213,8 @@ index d54326116e..ee461cd5c7 100644
   - a silly `if/else if/else` chain just to set `dualXPrintingModeStatus = save_dual_x_carriage_mode;`, or to `0` if it's not one of the valid modes (normally 0-3, but 0-4 because they made 4 single mode, right extruder)
   - and other stuff
 
+<details>
+<summary>powerloss.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/feature/powerloss.cpp b/Marlin/src/feature/powerloss.cpp
@@ -1263,8 +1301,12 @@ index 8db31daa40..2306ce398e 100644
    sprintf_P(cmd, PSTR("G1X%sY%sF3000"),
      dtostrf(info.current_position.x, 1, 3, str_1),
 ```
+</details>
 
 add `recovery_flag` to struct
+
+<details>
+<summary>powerloss.h</summary>
 
 ```diff
 diff --git a/Marlin/src/feature/powerloss.h b/Marlin/src/feature/powerloss.h
@@ -1282,6 +1324,9 @@ index 6a13c92df7..9b9609f322 100644
    struct {
      bool raised:1;                // Raised before saved
 ```
+</details>
+
+### G29
 
 Changes related to G29 bilinear bed leveling.
 
@@ -1291,6 +1336,9 @@ Changes related to G29 bilinear bed leveling.
 - other touch screen code
 - if I wanted to change the number of points (like to John's 7x7) but
   not update the touch screen firmware, I could probably fake it in 
+
+<details>
+<summary>G29.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/bedlevel/abl/G29.cpp b/Marlin/src/gcode/bedlevel/abl/G29.cpp
@@ -1364,6 +1412,9 @@ index 0eb13dba96..02df6e4c8d 100644
  
    TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(M_IDLE));
 ```
+</details>
+
+### G28
 
 G28 is the homing command.
 
@@ -1371,6 +1422,9 @@ G28 is the homing command.
   - I wonder why that is needed, i thought marlin supported dual x carriage out of the box?
 - some TERM (LCD) code commented out, and some added or modified for RTS
 - mode 4 (single right extruder) code, to home the left axis when printing from card
+
+<details>
+<summary>G28.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/calibrate/G28.cpp b/Marlin/src/gcode/calibrate/G28.cpp
@@ -1434,12 +1488,17 @@ index dc93ba3d2f..5700ac2522 100644
  
    report_current_position();
 ```
+</details>
 
-G34 / M422
+### G34 and M422
+
 Z-Stepped alignment /  Set Z Motor XY
 
 - add a G28 X after the G28 Z after z alignment if not card printing
 - add regular G28 otherwise
+
+<details>
+<summary>G34_M422.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/calibrate/G34_M422.cpp b/Marlin/src/gcode/calibrate/G34_M422.cpp
@@ -1475,8 +1534,9 @@ index dd1dd5622a..a53b0c0dc7 100644
          // Use the probed height from the last iteration to determine the Z height.
          // z_measured_min is used, because all steppers are aligned to z_measured_min.
 ```
+</details>
 
-M605 - multi nozzle mode
+### M605 - multi nozzle mode
 
 They change:
 - `-          if (parser.seen('X')) duplicate_extruder_x_offset = _MAX(parser.value_linear_units(), (X2_MIN_POS) - (X1_MIN_POS));`
@@ -1486,6 +1546,9 @@ So that last part, instead of being "62" becomes "144".
 This, I think, is supposed to be a safety check, to keep the extruders far enough apart.
 
 This is one of those changes that I'm trying to understand why it's needed. (If it's a bugfix, it should be improved and submitted upstream, otherwise, the less customizaton, the easier to upgrade Marlin)
+
+<details>
+<summary>M605.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/control/M605.cpp b/Marlin/src/gcode/control/M605.cpp
@@ -1502,6 +1565,9 @@ index 08efaab59d..73a8d35a94 100644
            // Always switch back to tool 0
            if (active_extruder != 0) tool_change(0);
 ```
+</details>
+
+### Tool Change
 
 T command: tool change (change extruder)
 T0 changes to the left extruder (sometimes called extrduer 1)
@@ -1511,6 +1577,9 @@ T1 changes to right extruder (extruder 2)
   - The docs say "S1           Don't move the tool in XY after change"
   - is this something special the screen sends? or just nonsense? 
 
+
+<details>
+<summary>T.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/control/T.cpp b/Marlin/src/gcode/control/T.cpp
@@ -1533,8 +1602,9 @@ index 5e8f6b5436..5bb139f951 100644
 +  active_extruder_font = parser.boolval('S');
  }
 ```
+</details>
 
-M660 filament change
+### M660 filament change
 
 They added:
 - `SERIAL_ECHOLNPGM("helwr");`
@@ -1542,6 +1612,9 @@ They added:
 - `rtscheck.RTS_SndData(ExchangePageBase + 6, ExchangepageAddr);`
 
 Not sure what any of that is about. The last one is letting the touch screen know. The first two, no idea. Off the cuff, looks like "hello world" test code, but I haven't looked at what that macro does, so I could be off base.
+
+<details>
+<summary>M600.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/feature/pause/M600.cpp b/Marlin/src/gcode/feature/pause/M600.cpp
@@ -1588,11 +1661,16 @@ index 541fa08350..0491dbc813 100644
      // If needed, home before parking for filament change
      home_if_needed(true);
 ```
+</details>
+
+# G0 and G1
 
 G0 / G1 are the move and move and extrude commands.
 
 - looks like we just add code to let the touch screen know
 
+<details>
+<summary>G0_G1.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/motion/G0_G1.cpp b/Marlin/src/gcode/motion/G0_G1.cpp
@@ -1620,8 +1698,14 @@ index cc6979b74c..1042919687 100644
    }
  }
 ```
+</details>
+
+### queue
 
 Added code to report to touch screen the print finishing from an sd card.
+
+<details>
+<summary>queue.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/queue.cpp b/Marlin/src/gcode/queue.cpp
@@ -1665,10 +1749,14 @@ index d11b2823f2..7d6279fe98 100644
    }
  
 ```
+</details>
 
-M24 / M25: start and pause sd card print
+### M24 / M25: start and pause sd card print
 
 - let the touch screen know?
+
+<details>
+<summary>M24_M25.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/sd/M24_M25.cpp b/Marlin/src/gcode/sd/M24_M25.cpp
@@ -1685,10 +1773,14 @@ index 4cb040feb3..9b9ac9afdd 100644
      #if ENABLED(HOST_ACTION_COMMANDS)
        TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_PAUSE_RESUME, PSTR("Pause SD"), PSTR("Resume")));
 ```
+</details>
 
-M106 / M107: fan speed / fan off
+### M106 / M107: fan speed / fan off
 
 - set both fans when `dxc_is_parked` when setting speed or turning off
+
+<details>
+<summary>M106_M107.cpp</summary>
 
 ```diff
 diff --git a/Marlin/src/gcode/temp/M106_M107.cpp b/Marlin/src/gcode/temp/M106_M107.cpp
@@ -1726,12 +1818,18 @@ index 3f85c53d78..7fb3f79be9 100644
      thermalManager.set_fan_speed(1 - pfan, 0);
  
 ```
+</details>
+
+### Conditionals LCD
 
 They add touch screen stuff in here. 
 Use serial port 1 for four particular motherboards, otherwise use part 3 (for creality 4.x board it says).
 The ones that use port 1 are: `BTT_SKR_MINI_E3_V1_0`, `BTT_SKR_MINI_E3_V1_2`, `BTT_SKR_MINI_E3_V2_0`, `BTT_SKR_E3_TURBO`
 
 It also enables some features based on having the touch screen.
+
+<details>
+<summary>Conditionals_LCD.h</summary>
 
 ```diff
 diff --git a/Marlin/src/inc/Conditionals_LCD.h b/Marlin/src/inc/Conditionals_LCD.h
@@ -1771,6 +1869,9 @@ index 99b360f9f0..a46cc80bbf 100644
  #endif
  
 ```
+</details>
+
+### Conditionals post
 
 - Adds check for touch screen to turn on `#define M600_PURGE_MORE_RESUMABLE 1`
 - Defines `HAS_T_COMMAND 1` if `HAS_MULTI_EXTRUDER`
@@ -1778,6 +1879,8 @@ index 99b360f9f0..a46cc80bbf 100644
   - This is only used once place, also added by sovol:
     - `Marlin/src/MarlinCore.cpp:1314  TERN_(HAS_T_COMMAND, active_extruder = active_extruder_font);`
 
+<details>
+<summary>Conditionals_post.h</summary>
 
 ```diff
 diff --git a/Marlin/src/inc/Conditionals_post.h b/Marlin/src/inc/Conditionals_post.h
@@ -1805,11 +1908,14 @@ index 1db4208a1f..bebf74b226 100644
    // LCD timeout to status screen default is 15s
    #ifndef LCD_TIMEOUT_TO_STATUS
 ```
+</details>
 
-SanityCheck.h
+### SanityCheck.h
 
 - Addded the touch screen to a condtion that makes sure only 1 touch screen option is enabled
 
+<details>
+<summary>SanityCheck.h</summary>
 
 ```diff
 diff --git a/Marlin/src/inc/SanityCheck.h b/Marlin/src/inc/SanityCheck.h
@@ -1826,6 +1932,9 @@ index 58c02e7ebd..78e9b701ab 100644
    + COUNT_ENABLED(LCD_SAINSMART_I2C_1602, LCD_SAINSMART_I2C_2004) \
    + COUNT_ENABLED(MKS_12864OLED, MKS_12864OLED_SSD1306) \
 ```
+</details>
+
+### Version.h
 
 They changed the version number from `2.0.9.2` to `V1.1.0`. WTF, why?
 
@@ -1841,6 +1950,8 @@ Other changes are less exciting.
 - machine name to SV04
 - set the corp website to svold3d.com
 
+<details>
+<summary>Version.h</summary>
 
 ```diff
 diff --git a/Marlin/src/inc/Version.h b/Marlin/src/inc/Version.h
@@ -1895,7 +2006,9 @@ index 12baa64fe7..6aa679f23b 100644
 +#define	CORP_WEBSITE_E	"sovol3d.com"
 \ No newline at end of file
 ```
+</details>
 
+### encoder
 An "encoder" is a knob that you can turn, like the ones on many 3d printer lcds.
 
 The SV04 touch screen doesn't have one, so this really doesn't matter to use.
@@ -1905,6 +2018,8 @@ Change the conditions from `HAS_DWIN_E3V2` to `DWIN_CREALITY_LCD_ENHANCED`
 
 
 Encoders are kind of neat. You can turn them forever, and they send little clicks to the microcontroller, so it knows how many notches you turned it and in what direction. But it doesn't have a "state". Compare to pots, which change resistance / create voltage dividers, which you can only turn for a fixed range (typically less than 360°), but doesn't have discrete clicks and is stateful.
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/lcd/e3v2/common/encoder.cpp b/Marlin/src/lcd/e3v2/common/encoder.cpp
@@ -1921,7 +2036,9 @@ index edfaf60aae..589301af45 100644
  #include "encoder.h"
  #include "../../buttons.h"
 ```
-LCD_RTS.cpp: new file added for touch screen
+</details>
+
+### LCD_RTS.cpp: new file added for touch screen
 
 I'm not going to cover this in too much detail. It's hopefully less exciting from an upgrading perspective since this is the isolated part that isn't intermingled with the rest of the code.
 
@@ -1986,6 +2103,8 @@ But also for a lot of things, it queues G Code. Here's a list of some of the gco
         sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
         sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
 ```
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/lcd/e3v2/creality/LCD_RTS.cpp b/Marlin/src/lcd/e3v2/creality/LCD_RTS.cpp
@@ -5225,8 +5344,13 @@ index 0000000000..8b4c50e386
 +
 +#endif
 ```
+</details>
+
+### marlinui
 
 Comment out some code, include LCD_RTS header (but don't use it?)
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/lcd/marlinui.cpp b/Marlin/src/lcd/marlinui.cpp
@@ -5270,8 +5394,13 @@ index 5fcbff870e..6fb5115d55 100644
      #if HAS_WIRED_LCD || defined(LED_BACKLIGHT_TIMEOUT)
        const millis_t ms = millis();
 ```
+</details>
+
+### endstops
 
 Tell touch screen if homing fails.
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/endstops.cpp b/Marlin/src/module/endstops.cpp
@@ -5303,6 +5432,9 @@ index d29fd3ecb3..5f6a2c69ce 100644
  #endif
  
 ```
+</details>
+
+### motion
 
 - add special case for extruder 2 single mode
   - set soft endstop min and max x to 0 and dual_max_x
@@ -5312,6 +5444,8 @@ index d29fd3ecb3..5f6a2c69ce 100644
   - `set_duplication_enabled(false); // Clear stale duplication state`
   - if duplicate: `new_pos.x = x0_pos + duplicate_extruder_x_offset;`
   - else (mirro?): `new_pos.x = _MIN(X_BED_SIZE - x0_pos, X2_MAX_POS);`
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/motion.cpp b/Marlin/src/module/motion.cpp
@@ -5371,6 +5505,8 @@ index a56831c214..dd5b251473 100644
              // Move duplicate extruder into the correct position
              if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Set planner X", inactive_extruder_x, " ... Line to X", new_pos.x);
 ```
+</details>
+
 added this:
 ```cpp
   FORCE_INLINE bool dxc_is_parked() { return dual_x_carriage_mode >= DXC_AUTO_PARK_MODE; }
@@ -5378,6 +5514,7 @@ added this:
 
 I saw that used earlier, didn't realized it was custom too.
 
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/motion.h b/Marlin/src/module/motion.h
@@ -5394,6 +5531,9 @@ index 50df5675e6..b9885c95fb 100644
  
    #define TOOL_X_HOME_DIR(T) ((T) ? X2_HOME_DIR : X_HOME_DIR)
 ```
+</details>
+
+### planner
 
 You might call patches to this file "a change in plans".
 
@@ -5402,6 +5542,7 @@ They commented them too, which is nice. In English even.
 
 I don't actually know what's going on though. I'll have to read more of planner.cpp to understand the context.
 
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/planner.cpp b/Marlin/src/module/planner.cpp
@@ -5435,6 +5576,9 @@ index c6edfb835e..ff26eff690 100644
  
        #else
 ```
+</details>
+
+### settings.cpp
 
 settings:
 - import the touch screen header
@@ -5444,6 +5588,7 @@ settings:
 - modify config echo code
   - they used SERIAL_ERROR_MSG for some of it, even though it's just a status. I bet that would so it would stand out for debugging, and they forgot to turn it back down.
 
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/settings.cpp b/Marlin/src/module/settings.cpp
@@ -5557,8 +5702,11 @@ index a4b8bb19e6..75a09d9d4d 100644
    }
  
 ```
+</details>
 
-send tempature to touch screen
+### send tempature to touch screen
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/module/temperature.cpp b/Marlin/src/module/temperature.cpp
@@ -5734,6 +5882,9 @@ index d59ebe5695..bfe1ea5d52 100644
          TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());
 
 ```
+</details>
+
+### pins
 
 I read somewhere that they customized this file instead of adding or modifying the one for the actual board they're using.  Looks like it might be true based on the beginning:
 
@@ -5745,6 +5896,8 @@ I read somewhere that they customized this file instead of adding or modifying t
 ```
 
 Important file that defines all the pins. But I wonder if there's a better way to do it than how they did it.
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/pins/stm32f1/pins_CREALITY_V4.h b/Marlin/src/pins/stm32f1/pins_CREALITY_V4.h
@@ -6024,6 +6177,9 @@ index c60d4dc2ba..25f0aec972 100644
  
  #elif ENABLED(DWIN_VET6_CREALITY_LCD)
 ```
+</details>
+
+### cardreader.cpp
 
 Touch screen stuff.
 - comment out a ui.refresh()
@@ -6032,6 +6188,8 @@ Touch screen stuff.
 DUAL_X_CARRIAGE stuff:
 - looks like it sets some default on power off or recovery>
 
+
+<details>
 
 ```diff
 diff --git a/Marlin/src/sd/cardreader.cpp b/Marlin/src/sd/cardreader.cpp
@@ -6090,7 +6248,13 @@ index 9f8aac634b..c8a034dd80 100644
          SERIAL_ECHOPGM("Power-loss file delete");
          SERIAL_ECHOPGM_P(jobRecoverFileExists() ? PSTR(" failed.\n") : PSTR("d.\n"));
 ```
+</details>
+
+### README.md
+
 They rewrote the README. I'm omitting the diff.
+
+### deleted asm files
 
 They deleted `ecx.S`.
 
@@ -6127,7 +6291,11 @@ deleted file mode 100755
 index 8b181aa993..0000000000
 ```
 
+### features.ini
+
 features.ini. Looks like they just adde the touch screen.
+
+<details>
 
 ```diff
 diff --git a/ini/features.ini b/ini/features.ini
@@ -6143,8 +6311,13 @@ index f54b645f85..e8f07f6e3d 100644
  DWIN_CREALITY_LCD_JYERSUI              = src_filter=+<src/lcd/e3v2/jyersui>
  IS_DWIN_MARLINUI                       = src_filter=+<src/lcd/e3v2/marlinui>
 ```
+</details>
+
+### stm32f1-maple.ini
 
 slight upgrade to something related to the board.
+
+<details>
 
 ```diff
 diff --git a/ini/stm32f1-maple.ini b/ini/stm32f1-maple.ini
@@ -6161,8 +6334,13 @@ index 00ba93aa63..d764c138fe 100644
  build_flags       = !python Marlin/src/HAL/STM32F1/build_flags.py
    ${common.build_flags} -DARDUINO_ARCH_STM32 -DMAPLE_STM32F1
 ```
+</details>
+
+### stm32f1.ini
 
 more board configuration, changed the variant from RE to VE
+
+<details>
 
 ```diff
 diff --git a/ini/stm32f1.ini b/ini/stm32f1.ini
@@ -6188,8 +6366,13 @@ index da7cedd3a3..1b9d4ff821 100644
                                -DENABLE_HWSERIAL3 -DTRANSFER_CLOCK_DIV=8
  build_unflags               = ${stm32_variant.build_unflags}
 ```
+</details>
+
+### platformio.ini
 
 Set the default for platformio.ini to the board they use.
+
+<details>
 
 ```diff
 diff --git a/platformio.ini b/platformio.ini
@@ -6206,3 +6389,4 @@ index 106e454d10..0e75a369c4 100644
  extra_configs =
      ini/avr.ini
 ```
+</details>
